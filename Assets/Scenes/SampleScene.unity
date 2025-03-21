@@ -716,6 +716,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2060196171}
     m_Modifications:
+    - target: {fileID: 1434278484330344975, guid: ecf8ca506896f40ecac7885a4ddc2688, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1566899084292391819, guid: ecf8ca506896f40ecac7885a4ddc2688, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -908,11 +912,9 @@ MonoBehaviour:
   roadAreaIndex: 3
   sidewalkAreaIndex: 4
   roadLayerMask:
-    serializedVersion: 2
     m_Bits: 0
   roadWidth: 4
   sidewalkLayerMask:
-    serializedVersion: 2
     m_Bits: 0
   sidewalkWidth: 1.5
 --- !u!1 &1267270457
@@ -1350,6 +1352,7 @@ MonoBehaviour:
     m_Bits: 0
   roadAreaIndex: 3
   showRoadConnections: 1
+  showRoadPathfinding: 1
 --- !u!1 &2098382872
 GameObject:
   m_ObjectHideFlags: 0

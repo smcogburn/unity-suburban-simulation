@@ -1,8 +1,7 @@
-// Main agent controller that coordinates all components
+// TransportManager.cs - Manages transport modes and movement parameters
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
-
 
 // Transport mode enum
 public enum TransportMode
@@ -27,11 +26,9 @@ public class TransportManager
     public delegate void TransportModeChanged(TransportMode newMode);
     public event TransportModeChanged OnTransportModeChanged;
     
-    // Settings
-    public float longDistanceThreshold = 10f;
-    
     public TransportMode CurrentMode { get; private set; }
     
+    // Constructor
     public TransportManager(AgentBehavior agentBehavior, NavMeshAgent navMeshAgent)
     {
         agent = agentBehavior;
@@ -46,12 +43,15 @@ public class TransportManager
         CurrentMode = TransportMode.Walking;
     }
     
+    // Set the transport mode
     public void SetTransportMode(TransportMode mode)
     {
         // Skip if already in this mode
         if (mode == CurrentMode)
             return;
-            
+        
+        Debug.Log($"Changing transport mode from {CurrentMode} to {mode}");
+        
         // Exit current state
         currentState.Exit();
         
@@ -80,45 +80,16 @@ public class TransportManager
         
         // Notify listeners
         OnTransportModeChanged?.Invoke(mode);
-        
-        Debug.Log($"Transport mode changed to {mode}");
     }
     
-    public void EvaluateTransportMode(Vector3 targetPosition, bool isFinalCheckpoint, float remainingDistance)
+    // Called when reaching a waypoint
+    public void OnWaypointReached(Vector3 position, bool isFinal, TransportMode mode)
     {
-        // For final destination, always walk
-        if (isFinalCheckpoint)
-        {
-            if (CurrentMode != TransportMode.Walking)
-            {
-                SetTransportMode(TransportMode.Walking);
-            }
-            return;
-        }
-        
-        // Get road status
-        bool currentPositionOnRoad = IsOnRoad();
-        bool targetPositionOnRoad = IsPositionOnRoad(targetPosition);
-        
-        // Decide transport mode based on context
-        if (currentPositionOnRoad && targetPositionOnRoad && remainingDistance > longDistanceThreshold)
-        {
-            // Long distance on road - drive
-            if (CurrentMode != TransportMode.Driving)
-            {
-                SetTransportMode(TransportMode.Driving);
-            }
-        }
-        else if (!targetPositionOnRoad || remainingDistance <= longDistanceThreshold)
-        {
-            // Off-road or short distance - walk
-            if (CurrentMode != TransportMode.Walking)
-            {
-                SetTransportMode(TransportMode.Walking);
-            }
-        }
+        // Set the appropriate transport mode for this segment
+        SetTransportMode(mode);
     }
     
+    // Update method called every frame
     public void Update()
     {
         // Let current state update
@@ -132,23 +103,11 @@ public class TransportManager
         }
     }
     
+    // Check if agent is on a road
     private bool IsOnRoad()
     {
-        // Check if agent is on a road
         NavMeshHit hit;
         if (NavMesh.SamplePosition(agent.transform.position, out hit, 0.5f, NavMesh.AllAreas))
-        {
-            int roadAreaMask = 1 << 3; // Assuming road is area 3
-            return (hit.mask & roadAreaMask) != 0;
-        }
-        return false;
-    }
-    
-    private bool IsPositionOnRoad(Vector3 position)
-    {
-        // Check if a position is on a road
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(position, out hit, 1.0f, NavMesh.AllAreas))
         {
             int roadAreaMask = 1 << 3; // Assuming road is area 3
             return (hit.mask & roadAreaMask) != 0;
@@ -178,6 +137,7 @@ public class WalkingState : TransportState
     // Movement parameters
     private float speed = 3.5f;
     private float acceleration = 8f;
+    private float angularSpeed = 120f;
     
     // Area costs
     private float walkableCost = 1.0f;
@@ -190,6 +150,7 @@ public class WalkingState : TransportState
         // Set movement parameters
         navAgent.speed = speed;
         navAgent.acceleration = acceleration;
+        navAgent.angularSpeed = angularSpeed;
         
         // Set area costs to prefer walkable areas over roads
         navAgent.SetAreaCost(0, walkableCost); // Walkable area
@@ -211,8 +172,9 @@ public class WalkingState : TransportState
 public class DrivingState : TransportState
 {
     // Movement parameters
-    private float speed = 10f;
+    private float speed = 30f;
     private float acceleration = 20f;
+    private float angularSpeed = 80f; // Slower turning when driving
     
     // Area costs
     private float walkableCost = 10.0f;
@@ -225,6 +187,7 @@ public class DrivingState : TransportState
         // Set movement parameters
         navAgent.speed = speed;
         navAgent.acceleration = acceleration;
+        navAgent.angularSpeed = angularSpeed;
         
         // Set area costs to strongly prefer roads over walkable areas
         navAgent.SetAreaCost(0, walkableCost); // Walkable area (avoid)
@@ -233,7 +196,8 @@ public class DrivingState : TransportState
     
     public override void Update()
     {
-        // Any ongoing driving logic
+        // Any ongoing driving logic - could add more realistic behavior here
+        // Like staying in lanes, following traffic rules, etc.
     }
     
     public override void Exit()
