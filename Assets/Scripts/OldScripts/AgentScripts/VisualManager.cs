@@ -1,4 +1,3 @@
-// VisualManager.cs - Enhanced visual representation and debugging
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
@@ -16,20 +15,15 @@ public class VisualManager
     private Color transitColor = Color.green;
     
     private PathfindingManager pathfinding;
-    private TransportManager transportManager;
+    private TransportManager transportManager; 
+
     
-    // Debug visualization settings
-    private float waypointSphereSize = 0.3f;
-    private float currentWaypointSphereSize = 0.5f;
-    private bool showPathToNextWaypoint = true;
-    
-    // Constructor
     public VisualManager(AgentBehavior agentBehavior, Renderer renderer, PathfindingManager pathfindingManager, TransportManager transportManager)
     {
         agent = agentBehavior;
         agentRenderer = renderer;
-        pathfinding = pathfindingManager;
-        this.transportManager = transportManager;
+        pathfinding = pathfindingManager;  // Store the passed reference
+        this.transportManager = transportManager; // Store the reference
         
         // Create material for the agent
         if (agentRenderer != null)
@@ -44,7 +38,6 @@ public class VisualManager
         }
     }
     
-    // Update visuals based on transport mode
     public void UpdateVisuals(TransportMode mode)
     {
         // Update color based on transport mode
@@ -69,9 +62,9 @@ public class VisualManager
         UpdateColor(targetColor);
     }
     
-    // Update the material color
     private void UpdateColor(Color color)
     {
+        // Update material color
         if (agentMaterial != null)
         {
             agentMaterial.color = color;
@@ -85,51 +78,45 @@ public class VisualManager
         }
     }
     
-    // Draw debug visualizations
     public void DrawDebugVisuals()
     {
         // Draw current mode indicator
         DrawModeIndicator();
         
-        // Draw waypoint path
-        DrawWaypointPath();
-        
-        // Draw current NavMesh path if enabled
-        if (showPathToNextWaypoint)
-        {
-            DrawCurrentNavMeshPath();
-        }
+        // Draw checkpoint path if available
+        DrawCheckpointPath();
     }
     
-    // Draw indicator showing current transport mode
     private void DrawModeIndicator()
     {
+        // Get current mode from agent
         TransportMode currentMode = transportManager.CurrentMode;
         
+        // Draw ray above agent showing mode
         Color indicatorColor = currentMode == TransportMode.Walking ? walkingColor : 
                               currentMode == TransportMode.Driving ? drivingColor : transitColor;
         
         Debug.DrawRay(agent.transform.position, Vector3.up * 2f, indicatorColor);
     }
     
-    // Draw the waypoint path
-    private void DrawWaypointPath()
+    private void DrawCheckpointPath()
     {
-        List<Vector3> waypoints = pathfinding.GetWaypoints();
-        int currentIndex = pathfinding.GetCurrentWaypointIndex();
+        // Get path data from agent
+        List<Vector3> checkpoints = pathfinding.GetCheckpoints();
+        int currentIndex = pathfinding.GetCurrentCheckpointIndex();
         
-        if (waypoints == null || waypoints.Count < 2)
+        if (checkpoints == null || checkpoints.Count < 2)
             return;
-        
-        // Draw lines between waypoints
-        for (int i = 0; i < waypoints.Count - 1; i++)
+            
+        // Draw lines between checkpoints
+        for (int i = 0; i < checkpoints.Count - 1; i++)
         {
-            // Color based on waypoint status
+            // Color based on checkpoint status
             Color lineColor;
             
             if (i < currentIndex)
             {
-                // Passed waypoints
+                // Passed checkpoints
                 lineColor = Color.green;
             }
             else if (i == currentIndex)
@@ -139,58 +126,35 @@ public class VisualManager
             }
             else
             {
-                // Future waypoints
+                // Future checkpoints
                 lineColor = Color.yellow;
             }
             
             // Draw line
-            Debug.DrawLine(waypoints[i], waypoints[i+1], lineColor);
+            Debug.DrawLine(checkpoints[i], checkpoints[i+1], lineColor);
             
-            // Draw waypoint marker
+            // Draw checkpoint marker
             if (i == currentIndex)
             {
-                // Current waypoint (larger)
-                DebugDrawSphere(waypoints[i], currentWaypointSphereSize, Color.white);
+                // Current checkpoint (larger)
+                DebugDrawSphere(checkpoints[i], 0.5f, Color.white);
             }
             else 
             {
-                // Other waypoints
-                bool onRoad = IsPositionOnRoad(waypoints[i]);
-                Color waypointColor = onRoad ? Color.red : Color.blue;
-                DebugDrawSphere(waypoints[i], waypointSphereSize, waypointColor);
+                // Other checkpoints
+                bool onRoad = IsPositionOnRoad(checkpoints[i]);
+                DebugDrawSphere(checkpoints[i], 0.3f, onRoad ? Color.red : Color.blue);
             }
         }
         
-        // Draw final waypoint
-        bool finalOnRoad = IsPositionOnRoad(waypoints[waypoints.Count - 1]);
-        Color finalColor = finalOnRoad ? Color.red : Color.green;
-        DebugDrawSphere(waypoints[waypoints.Count - 1], waypointSphereSize, finalColor);
+        // Draw final checkpoint
+        DebugDrawSphere(checkpoints[checkpoints.Count - 1], 0.3f, Color.green);
     }
     
-    // Draw the current NavMesh path
-    private void DrawCurrentNavMeshPath()
-    {
-        NavMeshAgent navAgent = agent.GetComponent<NavMeshAgent>();
-        
-        if (navAgent == null || navAgent.path == null)
-            return;
-            
-        // Path visualization
-        Color pathColor = transportManager.CurrentMode == TransportMode.Walking ? 
-                         new Color(0.5f, 0.5f, 1f, 0.5f) : 
-                         new Color(1f, 0.3f, 0.3f, 0.5f);
-            
-        // Draw the current path as calculated by NavMesh
-        for (int i = 0; i < navAgent.path.corners.Length - 1; i++)
-        {
-            Debug.DrawLine(navAgent.path.corners[i], navAgent.path.corners[i + 1], pathColor);
-        }
-    }
-    
-    // Draw a debug sphere
     private void DebugDrawSphere(Vector3 center, float radius, Color color)
     {
-        int segments = 12;
+        // Simple wireframe sphere approximation
+        int segments = 8;
         float step = 360.0f / segments;
         
         // Draw three orthogonal circles
@@ -218,9 +182,9 @@ public class VisualManager
         }
     }
     
-    // Check if a position is on a road
     private bool IsPositionOnRoad(Vector3 position)
     {
+        // Check if position is on road
         NavMeshHit hit;
         if (NavMesh.SamplePosition(position, out hit, 1.0f, NavMesh.AllAreas))
         {
